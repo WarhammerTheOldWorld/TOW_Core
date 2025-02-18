@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +23,7 @@ namespace TOW_Core.Abilities
 {
     public class AbilityManagerMissionLogic : MissionLogic
     {
+        
         private bool _shouldSheathWeapon;
         private bool _shouldWieldWeapon;
         private bool _hasInitializedForMainAgent;
@@ -38,7 +39,9 @@ namespace TOW_Core.Abilities
         private SummonedCombatant _attackerSummoningCombatant;
         private readonly float DamagePortionForChargingSpecialMove = 0.25f;
         private Dictionary<Team, int> _artillerySlots = new Dictionary<Team, int>();
-
+        private IInputContext InputContext => Mission.InputManager;
+       
+        
         public AbilityModeState CurrentState => _currentState;
 
         public int GetArtillerySlotsLeftForTeam(Team team)
@@ -76,7 +79,7 @@ namespace TOW_Core.Abilities
             if (_artillerySlots.ContainsKey(team))
             {
                 _artillerySlots[team] = 0;
-                foreach(var agent in team.TeamAgents)
+                foreach (var agent in team.TeamAgents)
                 {
                     if (agent.CanPlaceArtillery())
                     {
@@ -99,9 +102,9 @@ namespace TOW_Core.Abilities
         public override void OnAgentHit(Agent affectedAgent, Agent affectorAgent, int damage, in MissionWeapon affectorWeapon)
         {
             var comp = affectorAgent.GetComponent<AbilityComponent>();
-            if(comp != null)
+            if (comp != null)
             {
-                if(comp.SpecialMove != null) comp.SpecialMove.AddCharge(damage * DamagePortionForChargingSpecialMove);
+                if (comp.SpecialMove != null) comp.SpecialMove.AddCharge(damage * DamagePortionForChargingSpecialMove);
             }
         }
 
@@ -109,7 +112,7 @@ namespace TOW_Core.Abilities
         {
             if (!_hasInitializedForMainAgent)
             {
-                if(Agent.Main != null)
+                if (Agent.Main != null)
                 {
                     SetUpCastStanceParticles();
                     _hasInitializedForMainAgent = true;
@@ -118,7 +121,7 @@ namespace TOW_Core.Abilities
             else if (IsAbilityModeAvailableForMainAgent())
             {
                 CheckIfMainAgentHasPendingActivation();
-                
+
                 HandleInput();
 
                 UpdateWieldedItems();
@@ -134,10 +137,10 @@ namespace TOW_Core.Abilities
 
         private void HandleAnimations()
         {
-            if(CurrentState != AbilityModeState.Off)
+            if (CurrentState != AbilityModeState.Off)
             {
                 var action = Agent.Main.GetCurrentAction(1);
-                if(CurrentState == AbilityModeState.Idle && action != _idleAnimation)
+                if (CurrentState == AbilityModeState.Idle && action != _idleAnimation)
                 {
                     Agent.Main.SetActionChannel(1, _idleAnimation);
                 }
@@ -146,14 +149,14 @@ namespace TOW_Core.Abilities
 
         internal void OnCastComplete(Ability ability, Agent agent)
         {
-            if(ability is ItemBoundAbility && ability.Template.AbilityEffectType == AbilityEffectType.ArtilleryPlacement)
+            if (ability is ItemBoundAbility && ability.Template.AbilityEffectType == AbilityEffectType.ArtilleryPlacement)
             {
                 if (_artillerySlots.ContainsKey(agent.Team))
                 {
                     _artillerySlots[agent.Team]--;
                 }
             }
-            if(agent == Agent.Main)
+            if (agent == Agent.Main)
             {
                 if (CurrentState == AbilityModeState.Casting) _currentState = AbilityModeState.Idle;
                 if (Game.Current.GameType is Campaign)
@@ -167,9 +170,9 @@ namespace TOW_Core.Abilities
             }
         }
 
-        internal void OnCastStart(Ability ability, Agent agent) 
+        internal void OnCastStart(Ability ability, Agent agent)
         {
-            if(agent == Agent.Main)
+            if (agent == Agent.Main)
             {
                 if (CurrentState == AbilityModeState.Idle) _currentState = AbilityModeState.Casting;
             }
@@ -212,7 +215,7 @@ namespace TOW_Core.Abilities
         private void HandleInput()
         {
             //Turning ability mode on/off
-            if (Input.IsKeyPressed(InputKey.Q))
+            if (Input.IsKeyPressed(InputKey.Q) || (Input.IsKeyPressed(InputKey.ControllerLLeft) && !Input.IsKeyPressed(InputKey.ControllerLBumper))
             {
                 switch (_currentState)
                 {
@@ -226,7 +229,7 @@ namespace TOW_Core.Abilities
                         break;
                 }
             }
-            else if (Input.IsKeyPressed(InputKey.LeftMouseButton))
+            else if (InputContext.IsGameKeyPressed(9))
             {
                 bool flag = _abilityComponent.CurrentAbility.Crosshair == null ||
                             !_abilityComponent.CurrentAbility.Crosshair.IsVisible ||
@@ -237,9 +240,9 @@ namespace TOW_Core.Abilities
                 {
                     Agent.Main.CastCurrentAbility();
                 }
-                if(_abilityComponent.SpecialMove != null && _abilityComponent.SpecialMove.IsUsing) _abilityComponent.StopSpecialMove();
+                if (_abilityComponent.SpecialMove != null && _abilityComponent.SpecialMove.IsUsing) _abilityComponent.StopSpecialMove();
             }
-            else if (Input.IsKeyPressed(InputKey.RightMouseButton))
+            else if (InputContext.IsGameKeyPressed(10))
             {
                 if (_abilityComponent.SpecialMove != null && _abilityComponent.SpecialMove.IsUsing) _abilityComponent.StopSpecialMove();
             }
@@ -299,7 +302,7 @@ namespace TOW_Core.Abilities
                    IsCastingMission(Mission) &&
                    _abilityComponent != null &&
                    _abilityComponent.CurrentAbility != null;
-                   
+
         }
 
         private void EnableAbilityMode()
@@ -339,11 +342,11 @@ namespace TOW_Core.Abilities
         }
         private void EnableCastStanceParticles(bool enable)
         {
-            if(_psys != null)
+            if (_psys != null)
             {
                 foreach (var psys in _psys)
                 {
-                    if(psys != null)
+                    if (psys != null)
                     {
                         psys.SetEnable(enable);
                     }
@@ -385,7 +388,7 @@ namespace TOW_Core.Abilities
 
         public override void OnItemPickup(Agent agent, SpawnedItemEntity item)
         {
-            if(agent == Agent.Main) DisableAbilityMode(true);
+            if (agent == Agent.Main) DisableAbilityMode(true);
         }
 
         public SummonedCombatant GetSummoningCombatant(Team team)
@@ -402,8 +405,8 @@ namespace TOW_Core.Abilities
             }
 
             var combatantToReturn =
-                team.Side == BattleSideEnum.Attacker ? _attackerSummoningCombatant 
-                : team.Side == BattleSideEnum.Defender ? _defenderSummoningCombatant 
+                team.Side == BattleSideEnum.Attacker ? _attackerSummoningCombatant
+                : team.Side == BattleSideEnum.Defender ? _defenderSummoningCombatant
                     : null;
 
             if (combatantToReturn == null)
