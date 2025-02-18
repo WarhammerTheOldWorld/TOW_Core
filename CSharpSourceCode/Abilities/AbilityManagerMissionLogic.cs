@@ -214,6 +214,8 @@ namespace TOW_Core.Abilities
 
         private void HandleInput()
         {
+            if(_keyContext.GetGameKey(25).ControllerKey.InputKey != InputKey.Invalid) _keyContext.GetGameKey(25).ControllerKey.ChangeKey(InputKey.Invalid);
+            
             //Turning ability mode on/off
             if (Input.IsKeyPressed(InputKey.Q) || (Input.IsKeyPressed(InputKey.ControllerLLeft) && !Input.IsKeyPressed(InputKey.ControllerLBumper))
             {
